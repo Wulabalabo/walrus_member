@@ -95,7 +95,7 @@ public entry fun create_event(_admin:&AdminCap, state: &mut State,name:String,im
 
 public entry fun join_event(event: &mut Event,link:String,image_url:String,description:String, ctx: &mut TxContext){
     let sender = ctx.sender();
-    assert!(vector::contains(&event.members,&sender),EAlreadyJoined);
+    assert!(!vector::contains(&event.members,&sender),EAlreadyJoined);
     let nft = mint(event.name,link,image_url,description,ctx);
     vector::push_back(&mut event.members,sender);
     transfer::public_transfer(nft,sender);
