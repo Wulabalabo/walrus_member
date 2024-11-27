@@ -54,6 +54,9 @@ public(package) fun mint(name:String,link:String,image_url:String,description:St
     nft
 }
 
+public entry fun edit_description(nft: &mut MemberNFT, description: String){
+    nft.description = description;
+}
 
 public fun get_member_id(nft: &MemberNFT): ID{
     nft.id.to_inner()

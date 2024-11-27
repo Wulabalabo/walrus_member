@@ -1,28 +1,70 @@
 'use client'
-import { ConnectButton } from '@mysten/dapp-kit'
+import { ConnectButton, useSignAndExecuteTransaction } from '@mysten/dapp-kit'
 import Image from 'next/image'
 import { getUserProfile } from '@/lib/contracts'
 import { useCurrentAccount } from '@mysten/dapp-kit'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CategorizedObjects, calculateTotalBalance, formatBalance } from '@/utils/assetsHelpers'
+import { getSubdomainAndPath, subdomainToObjectId } from '@/utils/blob'
+import { getEvent, joinEvent, SiteEvent } from '@/contracts'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { JoinDialog } from '@/components/JoinDialog'
+
+import { JoinFormValues } from '@/lib/schemas'
+import { useNetworkVariables } from '@/config'
 
 export default function Home() {
   const account = useCurrentAccount();
-  const [userObjects, setUserObjects] = useState<CategorizedObjects | null>(null);
+  const [event, setEvent] = useState<SiteEvent | null>(null);
+  const [members, setMembers] = useState<string[]>([]);
+  const variables = useNetworkVariables();
+  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+
+  const fetchData = useCallback(async () => {
+    try {
+      const url = window.location.origin;
+      const parsedUrl = getSubdomainAndPath('https://6atv2yrewpo5z7evgs3eflxd813mh82rtvifqnwcdz4ke9l02h.walrus.site/');
+      if (!parsedUrl) {
+        return;
+      }
+
+      const objectId = subdomainToObjectId(parsedUrl.subdomain);
+      if (!objectId) {
+        return;
+      } else {
+        const event = await getEvent(objectId);
+        setEvent(event);
+        console.log("Event", event);
+        setMembers(event.members || []);
+      }
+    } catch (err) {
+      console.error("Error fetching event data:", err);
+    }
+  }, [account]);
+
+  const handleJoin = async (data: JoinFormValues) => {
+
+    if (!event) {
+      return;
+    }
+    const tx = await joinEvent(variables, event.id.id, data.link, event.image_url, data.bio);
+    await signAndExecuteTransaction({ transaction: tx }, {
+      onSuccess: (e) => {
+        console.log("Success", e);
+        fetchData();
+      }, onError: (e) => {
+        console.log("Error", e);
+      }
+    });
+  }
+
+  const handleSend = (member: string) => {
+    console.log("Send", member);
+  }
 
   useEffect(() => {
-    async function fetchUserProfile() {
-      if (account?.address) {
-        try {
-          const profile = await getUserProfile(account.address);
-          setUserObjects(profile);
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-        }
-      }
-    }
-
-    fetchUserProfile();
+    fetchData();
   }, [account]);
 
   return (
@@ -33,49 +75,48 @@ export default function Home() {
         </div>
         <ConnectButton />
       </header>
-      {userObjects!=null ? (
-      <main className="flex-grow flex flex-col items-center p-8">        
-        {userObjects && (
-          <div className="w-full max-w-6xl">
-            <h2 className="text-2xl font-bold mb-4">Your Assets</h2>
-            
-            <div className="flex gap-8">
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold mb-2">Coins</h3>
-                {Object.entries(userObjects.coins).map(([coinType, coins]) => {
-                  const totalBalance = calculateTotalBalance(coins);
-                  return (
-                    <div key={coinType} className="mb-4 p-4 bg-gray-100 rounded-lg">
-                      <h4 className="font-medium text-lg">{coinType.split('::').pop()}</h4>
-                      <p>Count: {coins.length}</p>
-                      <p>Total Balance: {formatBalance(totalBalance)}</p>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold mb-2">Other Objects</h3>
-                <div className="h-[500px] overflow-y-auto pr-4">
-                  {Object.entries(userObjects.objects).map(([objectType, objects]) => (
-                    <div key={objectType} className="mb-4 p-4 bg-gray-100 rounded-lg">
-                      <h4 className="font-medium text-lg">{objectType.split('::').pop()}</h4>
-                      <p>Count: {objects.length}</p>
-                      <p className="text-gray-500 text-sm">{objectType.split('::').pop()}</p>
-                      <p className="text-gray-500 text-sm">{objectType.split('::')[0]}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      {event ? (
+        <main className="flex-grow flex flex-col items-center p-8">
+          <div className="w-full max-w-6xl mt-8">
+            <div className="flex justify-between">
+              <h2 className="text-2xl font-bold mb-4">Event Details</h2>
+              {account && !members.includes(account.address) && <JoinDialog onSubmited={handleJoin} />}
             </div>
+
+            <div className="mb-4">
+              <h3 className="text-xl font-semibold">Name: {event.name}</h3>
+              <img src={event.image_url} alt={event.name} className="mb-2" />
+              <p>Description: {event.description}</p>
+              <p>Address: {event.b36addr}</p>
+              <p>Host: {event.host}</p>
+            </div>
+
+            <h2 className="text-2xl font-bold mb-4">Members</h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((member, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{member}</TableCell>
+                    <TableCell>
+                      <Button onClick={() => { handleSend(member) }} variant="default">Send</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </main>
-      ):(
+        </main>
+      ) : (
         <div className="flex-grow flex flex-col items-center p-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-8">Welcome to Nextjs Sui Dapp Template</h1>
           <h3 className="text-2xl font-bold text-gray-800 mb-8">Please connect your wallet to view your assets</h3>
-        </div>        
+        </div>
       )}
     </div>
   );

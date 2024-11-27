@@ -22,28 +22,25 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { eventFormSchema, type EventFormValues } from "@/lib/schemas"
-import { FileInput } from "./FileInput"
+import { joinFormSchema, type JoinFormValues } from "@/lib/schemas"
 
-
-interface CreateEventDialogProps {
-  onSubmited: (data: EventFormValues) => void;
+interface JoinDialogProps {
+  onSubmited: (data: JoinFormValues) => void;
 }
 
 
-export function CreateEventDialog({ onSubmited }: CreateEventDialogProps) {
+export function JoinDialog({ onSubmited }: JoinDialogProps) {
   const [open, setOpen] = useState(false)
 
-  const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
+  const form = useForm<JoinFormValues>({
+    resolver: zodResolver(joinFormSchema),
     defaultValues: {
-      name: "",
-      image: "",
-      description: "",
+      link: "",
+      bio: "",
     },
   })
 
-  async function onSubmit(data: EventFormValues) {
+  async function onSubmit(data: JoinFormValues) {
     try {
       setOpen(false)
       form.reset()
@@ -56,11 +53,11 @@ export function CreateEventDialog({ onSubmited }: CreateEventDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Create Event</Button>
+        <Button>Join Event</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Event</DialogTitle>
+          <DialogTitle>Join Event</DialogTitle>
           <DialogDescription>
             Fill in the details for your new event.
           </DialogDescription>
@@ -69,12 +66,12 @@ export function CreateEventDialog({ onSubmited }: CreateEventDialogProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="link"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Link</FormLabel>
                   <FormControl>
-                    <Input placeholder="Event name" {...field} />
+                    <Input placeholder="Event link" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -82,36 +79,19 @@ export function CreateEventDialog({ onSubmited }: CreateEventDialogProps) {
             />
             <FormField
               control={form.control}
-              name="image"
-              render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <FormItem>
-                  <FormLabel>Image</FormLabel>
-                  <FormControl>
-                    <FileInput
-                      onChange={onChange}
-                      value={value}
-                      error={!!error}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
+              name="bio"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Bio</FormLabel>
                   <FormControl>
-                    <Input placeholder="Event description" {...field} />
+                    <Input placeholder="bio" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create</Button>
+              <Button type="submit">Join</Button>
             </DialogFooter>
           </form>
         </Form>

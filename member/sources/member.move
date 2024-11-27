@@ -30,7 +30,7 @@ public struct Event has key, store{
 const EAlreadyJoined: u64 = 0;
 const EUnauthorized: u64 = 1;
 
-const EVENT_VISUALIZATION_SITE: address = @0x2;
+const EVENT_VISUALIZATION_SITE: address = @0x30e1a6f150d0bb70b3f96675a23de7ea95335a2501dd79d2453d62b9e1daab26;
 
 public struct MEMBER has drop {}
 

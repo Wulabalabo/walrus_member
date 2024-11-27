@@ -1,6 +1,6 @@
 'use client'
 
-import { ConnectButton } from '@mysten/dapp-kit'
+import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { SearchBar } from '@/components/SearchBar'
@@ -14,22 +14,32 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { CreateEventDialog } from "@/components/CreateEventDialog"
+import { EventFormValues } from '@/lib/schemas'
+import { useNetworkVariables } from '@/config'
+import { isValidSuiAddress } from '@mysten/sui/utils'
+import { toast } from '@/hooks/use-toast'
+import { useEventService } from '@/services/eventService'
+import { createEvent, getMemberState, SiteEvent } from '@/contracts'
+import { useTransaction } from '@/hooks/useTransaction'
 
-const MOCK_NFTS = Array.from({ length: 10 }, (_, i) => ({
-  id: i + 1,
-  title: `NFT #${i + 1}`,
-  description: `This is a description for NFT #${i + 1}`,
-  imageUrl: `/logo/logo.jpg`,
-}))
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [events, setEvents] = useState<SiteEvent[]>([])
+  const { createNewEvent } = useEventService()
+  const currentAccount = useCurrentAccount()
+  const variables = useNetworkVariables()
   const itemsPerPage = 6
+  const [currentTab, setCurrentTab] = useState('nfts')
+  const { execute, loading } = useTransaction({
+    transaction: (name, image_url, description) => createEvent(variables, name, image_url, description)
+  })
 
-  const filteredNFTs = MOCK_NFTS.filter(nft =>
-    nft.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    nft.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredNFTs = events.filter(nft =>
+    nft.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    nft.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    nft.host.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const totalPages = Math.ceil(filteredNFTs.length / itemsPerPage)
@@ -37,6 +47,23 @@ export default function Home() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
+
+  useEffect(() => {
+    if (variables.memberState) {
+      getMemberState(variables.memberState).then(res => {
+        setEvents(res)
+      })
+    }
+  }, [])
+
+  const handleCreateEvent = async (data: EventFormValues) => {
+    try {
+      await execute(data.name, data.image, data.description)
+      toast({ title: 'Event created successfully' })
+    } catch (error: any) {
+      toast({ title: 'Failed to create event', description: error.message })
+    }
+  }
 
   return (
     <div className="h-screen flex flex-col">
@@ -47,15 +74,38 @@ export default function Home() {
         <ConnectButton />
       </header>
 
-      <main className="flex-1 container mx-auto px-4 flex flex-col h-[calc(100vh-4rem)]">
+      <main className="flex-1 container mx-auto px-4 flex flex-col h-full">
         <div className="h-16 flex items-center justify-between w-full">
           <SearchBar onSearch={setSearchTerm} />
-          <CreateEventDialog />
+          <CreateEventDialog onSubmited={handleCreateEvent} />
         </div>
 
-        <div className="flex-1 h-[calc(100%-8rem)]">
-          <NFTGrid nfts={currentNFTs} />
+        <div className="h-16 flex items-center justify-between w-full">
+          <button onClick={() => setCurrentTab('nfts')} className={`tab ${currentTab === 'nfts' ? 'active' : ''}`}>
+            Events
+          </button>
+          <button onClick={() => setCurrentTab('profile')} className={`tab ${currentTab === 'profile' ? 'active' : ''}`}>
+            Profile
+          </button>
         </div>
+
+        {currentTab === 'nfts' && (
+          <div className="flex-1 h-[calc(100%-8rem)]">
+            <NFTGrid nfts={currentNFTs} />
+          </div>
+        )}
+
+        {currentTab === 'profile' && (
+          <div className="flex-1 h-[calc(100%-8rem)] flex items-center justify-center">
+            <div className="bg-white shadow-md rounded-lg p-4 max-w-sm">
+              <img src="https://i.imgur.com/xJfz2sW.jpeg" alt="Profile" className="w-full h-32 object-cover rounded-t-lg" />
+              <div className="p-4">
+                <h2 className="text-lg font-semibold">Wualabalabo</h2>
+                <p className="text-gray-600">This is a brief description about you or your profile.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="h-16 flex items-center justify-center">
           <Pagination>
